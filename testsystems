@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>1KW Motor Controller Architecture | Tech Breakdown</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+    
+    <!-- 
+    PALETTE: "Cyber Tech"
+    Primary Background: #0f172a (Slate 900)
+    Secondary Background: #1e293b (Slate 800)
+    Card Background: #334155 (Slate 700)
+    Text Primary: #f8fafc (Slate 50)
+    Text Secondary: #94a3b8 (Slate 400)
+    Accent/Vibrant: #06b6d4 (Cyan 500)
+    Success: #10b981 (Emerald 500)
+    Danger: #ef4444 (Red 500)
+    -->
+
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #0f172a; color: #f8fafc; }
+        .chart-container { 
+            position: relative; 
+            width: 100%; 
+            max-width: 800px; 
+            margin: 0 auto; 
+            height: 350px; 
+            max-height: 400px; 
+        }
+        /* Custom Flowchart Connector Styles */
+        .flow-line-vertical {
+            width: 2px;
+            background-color: #475569;
+            margin: 0 auto;
+            height: 20px;
+        }
+        .flow-arrow-down {
+            width: 0; 
+            height: 0; 
+            border-left: 6px solid transparent;
+            border-right: 6px solid transparent;
+            border-top: 8px solid #475569;
+            margin: 0 auto;
+        }
+        .flow-card {
+            transition: all 0.3s ease;
+            border-left: 4px solid #06b6d4;
+        }
+        .flow-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+            border-left-color: #22d3ee;
+        }
+        /* Hierarchy Connector Lines for HVAC Section */
+        .h-line-connect {
+            position: absolute;
+            top: 50%;
+            left: -20px;
+            width: 20px;
+            height: 2px;
+            background-color: #475569;
+        }
+        .v-line-connect {
+            position: absolute;
+            top: -20px;
+            left: 50%;
+            width: 2px;
+            height: 20px;
+            background-color: #475569;
+        }
+    </style>
+</head>
+<body class="antialiased selection:bg-cyan-500 selection:text-white">
+
+    <!-- Header Section -->
+    <header class="w-full bg-slate-900 border-b border-slate-700 sticky top-0 z-50 bg-opacity-90 backdrop-blur-md">
+        <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+            <div class="flex items-center space-x-2">
+                <div class="w-8 h-8 bg-cyan-500 rounded-lg flex items-center justify-center font-bold text-slate-900">M</div>
+                <h1 class="text-xl font-bold tracking-tight text-white">1KW <span class="text-cyan-400">Motor Controller</span></h1>
+            </div>
+            <nav class="hidden md:flex space-x-6 text-sm font-medium text-slate-400">
+                <a href="#power-architecture" class="hover:text-cyan-400 transition-colors">Power Flow</a>
+                <a href="#protection-logic" class="hover:text-cyan-400 transition-colors">Protection</a>
+                <a href="#digital-brain" class="hover:text-cyan-400 transition-colors">Digital Control</a>
+                <a href="#hvac-integration" class="text-emerald-400 hover:text-emerald-300 transition-colors font-bold">Airport HVAC</a>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Hero / Introduction -->
+    <section class="max-w-7xl mx-auto px-4 py-16 text-center">
+        <h2 class="text-4xl md:text-5xl font-extrabold mb-6 bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-blue-500">
+            Precision Engineering: 1KW AC-DC Control
+        </h2>
+        <p class="text-lg text-slate-400 max-w-3xl mx-auto mb-10 leading-relaxed">
+            An in-depth technical walkthrough of a high-efficiency 1KW motor controller. 
+            Detailed architecture breakdown covering the <strong>Power Supply</strong>, <strong>Analog Conditioning</strong>, and <strong>Digital Logic</strong> circuits required to drive modern BLDC/PMSM motors with Field Oriented Control (FOC).
+        </p>
+        <div class="flex flex-wrap justify-center gap-4">
+            <div class="bg-slate-800 border border-slate-700 px-6 py-3 rounded-full text-sm font-semibold text-cyan-400 shadow-lg">Input: 220V AC</div>
+            <div class="bg-slate-800 border border-slate-700 px-6 py-3 rounded-full text-sm font-semibold text-emerald-400 shadow-lg">Power: 1000 Watts</div>
+            <div class="bg-slate-800 border border-slate-700 px-6 py-3 rounded-full text-sm font-semibold text-purple-400 shadow-lg">MCU: dsPIC33CK</div>
+        </div>
+    </section>
+
+    <!-- SECTION 1: POWER SUPPLY FLOWCHART -->
+    <section id="power-architecture" class="max-w-6xl mx-auto px-4 py-12">
+        <div class="flex flex-col md:flex-row gap-8 items-start mb-8">
+            <div class="md:w-1/3">
+                <h3 class="text-2xl font-bold text-white mb-3 border-l-4 border-cyan-500 pl-3">Power Supply Architecture</h3>
+                <p class="text-slate-400 text-sm leading-relaxed mb-4">
+                    The heart of the controller is the power supply section. It converts raw mains AC into a stable DC bus for the motor and auxiliary low-voltages for the electronics.
+                </p>
+                <div class="bg-slate-800 p-4 rounded-lg border border-slate-700">
+                    <h4 class="text-cyan-400 font-bold text-sm mb-2">Key Stages:</h4>
+                    <ul class="text-xs text-slate-300 space-y-2">
+                        <li class="flex items-center"><span class="w-2 h-2 bg-emerald-500 rounded-full mr-2"></span>Filtering (EMI & Inrush)</li>
+                        <li class="flex items-center"><span class="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>Rectification (AC to DC)</li>
+                        <li class="flex items-center"><span class="w-2 h-2 bg-purple-500 rounded-full mr-2"></span>Auxiliary Conversion (15V, 5V)</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <!-- Custom HTML Flowchart -->
+            <div class="md:w-2/3 w-full bg-slate-800/50 rounded-xl p-8 border border-slate-700 relative overflow-hidden">
+                <div class="absolute top-0 right-0 p-2 opacity-20 text-6xl font-bold text-slate-600 select-none">FLOW</div>
+                
+                <div class="flex flex-col items-center">
+                    <!-- Step 1 -->
+                    <div class="w-64 bg-slate-700 p-4 rounded shadow-lg text-center border-t-4 border-emerald-500 flow-card">
+                        <div class="font-bold text-white">AC Input</div>
+                        <div class="text-xs text-emerald-400">220V Mains (L & N)</div>
+                    </div>
+                    
+                    <div class="flow-line-vertical"></div><div class="flow-arrow-down"></div>
+
+                    <!-- Step 2 -->
+                    <div class="w-64 bg-slate-700 p-4 rounded shadow-lg text-center flow-card border-l-4 border-blue-500">
+                        <div class="font-bold text-white">EMI Filter & Fuse</div>
+                        <div class="text-xs text-slate-400">Noise Suppression</div>
+                    </div>
+
+                    <div class="flow-line-vertical"></div><div class="flow-arrow-down"></div>
+
+                    <!-- Step 3 -->
+                    <div class="grid grid-cols-2 gap-4 w-full max-w-md">
+                        <div class="bg-slate-700 p-3 rounded text-center border border-slate-600">
+                            <div class="font-bold text-white text-sm">Rectifier Bridge</div>
+                            <div class="text-[10px] text-slate-400">AC &rarr; Pulsating DC</div>
+                        </div>
+                        <div class="bg-slate-700 p-3 rounded text-center border border-slate-600">
+                            <div class="font-bold text-white text-sm">NTC Thermistor</div>
+                            <div class="text-[10px] text-slate-400">Inrush Current Limit</div>
+                        </div>
+                    </div>
+
+                    <div class="flow-line-vertical"></div><div class="flow-arrow-down"></div>
+
+                    <!-- Step 4 -->
+                    <div class="w-64 bg-slate-700 p-4 rounded shadow-lg text-center flow-card border-l-4 border-indigo-500">
+                        <div class="font-bold text-white">DC Capacitor Bank</div>
+                        <div class="text-xs text-indigo-400">Voltage Smoothing (~310V DC)</div>
+                    </div>
+
+                    <!-- Branching Paths -->
+                    <div class="relative w-full max-w-lg h-8 mt-2">
+                        <div class="absolute left-1/2 top-0 bottom-0 w-0.5 bg-slate-600 -ml-0.5"></div> <!-- Center Line -->
+                        <div class="absolute left-1/4 right-1/4 top-1/2 h-0.5 bg-slate-600"></div> <!-- Horizontal Branch -->
+                        <div class="absolute left-1/4 top-1/2 bottom-0 w-0.5 bg-slate-600"></div> <!-- Left Drop -->
+                        <div class="absolute right-1/4 top-1/2 bottom-0 w-0.5 bg-slate-600"></div> <!-- Right Drop -->
+                    </div>
+
+                    <div class="flex justify-center w-full max-w-lg gap-8">
+                        <!-- Left Branch: Motor Power -->
+                        <div class="w-1/2 flex flex-col items-center">
+                            <div class="flow-arrow-down"></div>
+                            <div class="w-full bg-slate-700 p-3 mt-1 rounded text-center border-l-4 border-cyan-500 shadow-md">
+                                <div class="font-bold text-cyan-400 text-sm">Inverter Bridge</div>
+                                <div class="text-xs text-slate-300">6x MOSFETs</div>
+                                <div class="mt-2 text-xs font-mono bg-slate-900 p-1 rounded">To Motor U/V/W</div>
+                            </div>
+                        </div>
+
+                        <!-- Right Branch: Aux Power -->
+                        <div class="w-1/2 flex flex-col items-center">
+                            <div class="flow-arrow-down"></div>
+                            <div class="w-full bg-slate-700 p-3 mt-1 rounded text-center border-l-4 border-pink-500 shadow-md">
+                                <div class="font-bold text-pink-400 text-sm">Aux Power Supply</div>
+                                <div class="text-xs text-slate-300">LNK3206 IC</div>
+                                <div class="mt-2 flex justify-center gap-2">
+                                    <span class="text-[10px] bg-slate-900 px-2 py-0.5 rounded text-white">12V</span>
+                                    <span class="text-[10px] bg-slate-900 px-2 py-0.5 rounded text-white">5V</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- SECTION 2: PROTECTION LOGIC (Charts) -->
+    <section id="protection-logic" class="bg-slate-800 py-12 border-y border-slate-700">
+        <div class="max-w-6xl mx-auto px-4">
+            <h3 class="text-2xl font-bold text-white mb-6 border-l-4 border-red-500 pl-3">Smart Protection Logic</h3>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <!-- Chart 1: Voltage Range -->
+                <div class="bg-slate-900 p-6 rounded-xl shadow-lg border border-slate-700">
+                    <h4 class="text-lg font-semibold text-slate-200 mb-2">Input Voltage Safe Operating Area</h4>
+                    <p class="text-sm text-slate-400 mb-4 h-12">The controller continuously monitors AC input. It engages a relay to disconnect power if voltage drifts outside the 160V-240V window.</p>
+                    <div class="chart-container">
+                        <canvas id="voltageChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Chart 2: System Component Breakdown (Conceptual) -->
+                <div class="bg-slate-900 p-6 rounded-xl shadow-lg border border-slate-700">
+                    <h4 class="text-lg font-semibold text-slate-200 mb-2">Controller Function Distribution</h4>
+                    <p class="text-sm text-slate-400 mb-4 h-12">Breakdown of the controller's internal tasks based on the complexity described in the Analog & Digital sections.</p>
+                    <div class="chart-container">
+                        <canvas id="functionsChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- SECTION 3: DIGITAL & ANALOG (Tech Specs) -->
+    <section id="digital-brain" class="max-w-6xl mx-auto px-4 py-16">
+        <div class="text-center mb-12">
+            <h3 class="text-2xl font-bold text-white">Digital & Analog Processing</h3>
+            <p class="text-slate-400 mt-2">Connecting the physical world to the digital algorithm.</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <!-- Card 1 -->
+            <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 hover:border-cyan-500 transition-colors group">
+                <div class="w-12 h-12 bg-slate-700 rounded-full flex items-center justify-center mb-4 text-2xl group-hover:bg-cyan-900 group-hover:text-cyan-400 transition-colors">🧠</div>
+                <h4 class="text-xl font-bold text-white mb-2">MCU Core</h4>
+                <p class="text-sm text-slate-400 mb-4">Uses the <strong>dsPIC33CK256MP506</strong> Digital Signal Controller.</p>
+                <ul class="text-xs text-slate-500 space-y-1">
+                    <li>• High-speed ADC for Current Sensing</li>
+                    <li>• PWM Generators for Inverter</li>
+                    <li>• FOC Algorithm Execution</li>
+                </ul>
+            </div>
+
+            <!-- Card 2 -->
+            <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 hover:border-cyan-500 transition-colors group">
+                <div class="w-12 h-12 bg-slate-700 rounded-full flex items-center justify-center mb-4 text-2xl group-hover:bg-cyan-900 group-hover:text-cyan-400 transition-colors">📉</div>
+                <h4 class="text-xl font-bold text-white mb-2">Analog Sensing</h4>
+                <p class="text-sm text-slate-400 mb-4">Conditioning circuits prepare real-world signals for the MCU.</p>
+                <ul class="text-xs text-slate-500 space-y-1">
+                    <li>• <strong>BEMF:</strong> Resistor dividers for position</li>
+                    <li>• <strong>Current:</strong> Shunt resistors + OpAmps</li>
+                    <li>• <strong>Throttle:</strong> Noise filtering input</li>
+                </ul>
+            </div>
+
+            <!-- Card 3 -->
+            <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 hover:border-cyan-500 transition-colors group">
+                <div class="w-12 h-12 bg-slate-700 rounded-full flex items-center justify-center mb-4 text-2xl group-hover:bg-cyan-900 group-hover:text-cyan-400 transition-colors">⚡</div>
+                <h4 class="text-xl font-bold text-white mb-2">Gate Driving</h4>
+                <p class="text-sm text-slate-400 mb-4">High-voltage interface between 3.3V logic and 310V Power.</p>
+                <ul class="text-xs text-slate-500 space-y-1">
+                    <li>• Half-Bridge Drivers (IR2101/Similar)</li>
+                    <li>• Bootstrap Circuitry</li>
+                    <li>• Dead-time insertion via MCU</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Logic Diagram (HTML) -->
+        <div class="mt-12 bg-slate-900 border border-slate-700 rounded-xl p-8">
+            <h4 class="text-center text-cyan-400 font-bold mb-8 tracking-widest uppercase text-sm">FOC Control Loop Diagram</h4>
+            <div class="flex flex-col md:flex-row justify-between items-center gap-4 text-xs font-mono">
+                <!-- Block 1 -->
+                <div class="bg-slate-800 text-white p-4 rounded border border-slate-600 text-center w-full md:w-auto">
+                    Target Speed<br><span class="text-slate-500">(Throttle)</span>
+                </div>
+                <div class="hidden md:block text-slate-500 text-xl">&rarr;</div>
+                <div class="block md:hidden text-slate-500 text-xl">&darr;</div>
+
+                <!-- Block 2 -->
+                <div class="bg-slate-800 text-cyan-400 p-4 rounded border-2 border-cyan-500 shadow-[0_0_15px_rgba(6,182,212,0.2)] text-center w-full md:w-auto">
+                    <div>Algorithm (FOC)</div>
+                    <div class="mt-2 text-[10px] text-slate-300 grid grid-cols-2 gap-2">
+                        <div class="bg-slate-900 p-1">Clarke</div>
+                        <div class="bg-slate-900 p-1">Park</div>
+                        <div class="bg-slate-900 p-1">PI Loop</div>
+                        <div class="bg-slate-900 p-1">Inv Park</div>
+                    </div>
+                </div>
+
+                <div class="hidden md:block text-slate-500 text-xl">&rarr;</div>
+                <div class="block md:hidden text-slate-500 text-xl">&darr;</div>
+
+                <!-- Block 3 -->
+                <div class="bg-slate-800 text-white p-4 rounded border border-slate-600 text-center w-full md:w-auto">
+                    SVPWM<br><span class="text-slate-500">(Space Vector)</span>
+                </div>
+
+                <div class="hidden md:block text-slate-500 text-xl">&rarr;</div>
+                <div class="block md:hidden text-slate-500 text-xl">&darr;</div>
+
+                <!-- Block 4 -->
+                <div class="bg-slate-800 text-emerald-400 p-4 rounded border border-emerald-500 text-center w-full md:w-auto">
+                    Inverter<br><span class="text-slate-500">(Gate Drive)</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- SECTION 4: AIRPORT HVAC INTEGRATION (NEW) -->
+    <section id="hvac-integration" class="bg-slate-900 border-t border-slate-800 py-16">
+        <div class="max-w-7xl mx-auto px-4">
+            <div class="mb-12">
+                <h3 class="text-3xl font-extrabold text-white mb-4 border-l-4 border-emerald-500 pl-4">Strategic Airport HVAC Integration</h3>
+                <p class="text-slate-400 max-w-3xl leading-relaxed">
+                    Airports operate 24/7 with varying passenger densities. Traditional constant-speed motors waste massive amounts of energy. 
+                    This <strong>1KW FOC Controller</strong> transforms static Air Handling Units (AHU) into intelligent <strong>Variable Air Volume (VAV)</strong> systems, 
+                    aligning airflow precisely with terminal demand.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-12">
+                
+                <!-- Left: Integration Diagram (HTML/Tailwind) -->
+                <div>
+                    <h4 class="text-xl font-bold text-white mb-6 flex items-center">
+                        <span class="bg-emerald-500/20 text-emerald-400 p-2 rounded-lg mr-3">🏢</span>
+                        BMS Connectivity Tier
+                    </h4>
+                    
+                    <div class="bg-slate-800 p-8 rounded-xl border border-slate-700 relative h-full min-h-[400px]">
+                        <!-- Tier 1: BMS -->
+                        <div class="w-full bg-slate-700 p-4 rounded-lg border-2 border-slate-600 text-center relative z-10 mb-8">
+                            <div class="text-sm font-bold text-slate-300 tracking-wider">LEVEL 1: CENTRAL CONTROL</div>
+                            <div class="text-lg font-bold text-white mt-1">Airport BMS Mainframe</div>
+                            <div class="text-xs text-slate-400">Scheduling, Load Balancing, Emergency Override</div>
+                            <div class="v-line-connect" style="top: 100%; height: 32px;"></div>
+                        </div>
+
+                        <!-- Tier 2: The Controller -->
+                        <div class="w-3/4 mx-auto bg-cyan-900/30 p-4 rounded-lg border-2 border-cyan-500 text-center relative z-10 mb-8 backdrop-blur-sm">
+                            <div class="text-sm font-bold text-cyan-400 tracking-wider">LEVEL 2: LOCAL DRIVE</div>
+                            <div class="text-lg font-bold text-white mt-1">1KW Motor Controller</div>
+                            <div class="text-xs text-cyan-200">PID Logic • FOC Precision • Protection</div>
+                            
+                            <!-- Input Connectors -->
+                            <div class="absolute -left-4 top-1/2 transform -translate-y-1/2 flex flex-col gap-2">
+                                <div class="bg-slate-900 text-[10px] text-slate-400 px-2 py-1 rounded border border-slate-700">Modbus/CAN</div>
+                                <div class="bg-slate-900 text-[10px] text-slate-400 px-2 py-1 rounded border border-slate-700">0-10V Signal</div>
+                            </div>
+                            <div class="v-line-connect" style="top: 100%; height: 32px;"></div>
+                        </div>
+
+                        <!-- Tier 3: Physical -->
+                        <div class="grid grid-cols-2 gap-4 relative z-10">
+                            <!-- Motor -->
+                            <div class="bg-slate-700 p-4 rounded-lg border border-slate-600 text-center">
+                                <div class="text-2xl mb-1">⚙️</div>
+                                <div class="font-bold text-white text-sm">BLDC Fan/Pump</div>
+                                <div class="text-xs text-slate-400">Variable Speed Output</div>
+                            </div>
+                            <!-- Feedback -->
+                            <div class="bg-slate-700 p-4 rounded-lg border border-slate-600 text-center">
+                                <div class="text-2xl mb-1">🌡️</div>
+                                <div class="font-bold text-white text-sm">Zone Sensors</div>
+                                <div class="text-xs text-slate-400">CO2 / Temp Feedback</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right: Chart & Benefits -->
+                <div class="flex flex-col justify-between">
+                    <div class="mb-6">
+                        <h4 class="text-xl font-bold text-white mb-2">Energy Savings: Terminal Profile</h4>
+                        <p class="text-sm text-slate-400 mb-4">
+                            Comparison of a 24-hour cycle in an airport terminal. The 1KW Controller (Green) modulates power based on passenger footfall, unlike fixed-speed motors (Red).
+                        </p>
+                        <div class="chart-container bg-slate-800 p-4 rounded-xl border border-slate-700">
+                            <canvas id="hvacChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="bg-slate-800 p-4 rounded-lg border-l-4 border-emerald-500">
+                            <h5 class="text-emerald-400 font-bold text-sm">Silent Operation</h5>
+                            <p class="text-xs text-slate-400 mt-1">FOC algorithm minimizes torque ripple, ensuring quiet terminals.</p>
+                        </div>
+                        <div class="bg-slate-800 p-4 rounded-lg border-l-4 border-red-500">
+                            <h5 class="text-red-400 font-bold text-sm">Grid Immunity</h5>
+                            <p class="text-xs text-slate-400 mt-1">160V-240V protection range handles dirty industrial power grids typical of hangars.</p>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-slate-900 border-t border-slate-800 py-8 text-center mt-12">
+        <p class="text-slate-500 text-sm">1KW Motor Controller Technical Analysis • Generated for Engineering Review</p>
+    </footer>
+
+    <!-- SCRIPTS -->
+    <script>
+        // Chart.js Global Config
+        Chart.defaults.color = '#94a3b8';
+        Chart.defaults.font.family = "'Inter', sans-serif";
+        
+        // Helper
+        function wrapLabel(str, maxLen) {
+            if (str.length <= maxLen) return str;
+            const words = str.split(' ');
+            const lines = [];
+            let currentLine = words[0];
+            for (let i = 1; i < words.length; i++) {
+                if (currentLine.length + 1 + words[i].length <= maxLen) {
+                    currentLine += ' ' + words[i];
+                } else {
+                    lines.push(currentLine);
+                    currentLine = words[i];
+                }
+            }
+            lines.push(currentLine);
+            return lines;
+        }
+
+        // --- 1. Voltage Protection Range Chart ---
+        const voltageCtx = document.getElementById('voltageChart').getContext('2d');
+        new Chart(voltageCtx, {
+            type: 'bar',
+            data: {
+                labels: ['Input Voltage Range'],
+                datasets: [
+                    {
+                        label: 'Under-Voltage Cutoff (<160V)',
+                        data: [160],
+                        backgroundColor: 'rgba(239, 68, 68, 0.5)', 
+                        borderColor: '#ef4444',
+                        borderWidth: 1,
+                        barPercentage: 0.6
+                    },
+                    {
+                        label: 'Safe Operating Area (160V-240V)',
+                        data: [80],
+                        backgroundColor: 'rgba(16, 185, 129, 0.5)',
+                        borderColor: '#10b981',
+                        borderWidth: 1,
+                        barPercentage: 0.6
+                    },
+                    {
+                        label: 'Over-Voltage Cutoff (>240V)',
+                        data: [60], 
+                        backgroundColor: 'rgba(239, 68, 68, 0.5)',
+                        borderColor: '#ef4444',
+                        borderWidth: 1,
+                        barPercentage: 0.6
+                    }
+                ]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        stacked: true,
+                        grid: { color: '#334155' },
+                        title: { display: true, text: 'Voltage (V AC)' },
+                        min: 0,
+                        max: 300
+                    },
+                    y: { stacked: true, display: false }
+                },
+                plugins: {
+                    legend: { position: 'bottom', labels: { boxWidth: 12 } },
+                    tooltip: {
+                        callbacks: {
+                            title: function(tooltipItems) {
+                                const item = tooltipItems[0];
+                                let label = item.chart.data.labels[item.dataIndex];
+                                return Array.isArray(label) ? label.join(' ') : label;
+                            },
+                            label: function(context) {
+                                if (context.datasetIndex === 0) return '0V - 160V: System Off';
+                                if (context.datasetIndex === 1) return '160V - 240V: System Active';
+                                if (context.datasetIndex === 2) return '240V+: System Off';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // --- 2. System Function Distribution Chart ---
+        const funcCtx = document.getElementById('functionsChart').getContext('2d');
+        new Chart(funcCtx, {
+            type: 'doughnut',
+            data: {
+                labels: [
+                    wrapLabel('Power Conversion (Rectifier/Inverter)', 20),
+                    wrapLabel('Signal Processing (Analog)', 20),
+                    wrapLabel('Digital Control (MCU Logic)', 20),
+                    wrapLabel('Protection & Safety Circuits', 20)
+                ],
+                datasets: [{
+                    data: [40, 15, 25, 20],
+                    backgroundColor: ['#06b6d4', '#3b82f6', '#8b5cf6', '#ef4444'],
+                    borderColor: '#1e293b',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '60%',
+                plugins: {
+                    legend: { position: 'right', labels: { boxWidth: 12 } },
+                    tooltip: {
+                        callbacks: {
+                            title: function(tooltipItems) {
+                                const item = tooltipItems[0];
+                                let label = item.chart.data.labels[item.dataIndex];
+                                return Array.isArray(label) ? label.join(' ') : label;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // --- 3. Airport HVAC Energy Profile Chart (NEW) ---
+        const hvacCtx = document.getElementById('hvacChart').getContext('2d');
+        new Chart(hvacCtx, {
+            type: 'line',
+            data: {
+                labels: ['00:00', '04:00', '08:00', '12:00', '16:00', '20:00', '23:59'],
+                datasets: [
+                    {
+                        label: 'Conventional Fixed-Speed Motor',
+                        data: [90, 90, 90, 90, 90, 90, 90], // Constant load waste
+                        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                        borderColor: '#ef4444',
+                        borderWidth: 2,
+                        borderDash: [5, 5],
+                        fill: true,
+                        tension: 0
+                    },
+                    {
+                        label: '1KW Smart FOC Controller',
+                        data: [20, 15, 60, 85, 75, 50, 25], // Follows passenger traffic
+                        backgroundColor: 'rgba(16, 185, 129, 0.2)', // Emerald fill
+                        borderColor: '#10b981',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4 // Smooth curve
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: '#334155' },
+                        title: { display: true, text: 'Energy Usage (%)' }
+                    },
+                    x: {
+                        grid: { display: false }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { boxWidth: 12 }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            title: function(tooltipItems) {
+                                const item = tooltipItems[0];
+                                let label = item.chart.data.labels[item.dataIndex];
+                                return Array.isArray(label) ? label.join(' ') : label;
+                            },
+                            afterBody: function(context) {
+                                return '\nNote: Smart control drops to ~15% during off-hours, saving massive costs.';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>
